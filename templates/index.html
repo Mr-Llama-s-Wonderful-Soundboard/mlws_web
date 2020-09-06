@@ -2,24 +2,64 @@
 
 <!DOCTYPE html>
 <html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>MLWS</title>
-	<link rel="stylesheet" href="css/index.css">
-	<link rel="stylesheet" href="css/sound.css">
-</head>
-<body>
-	<table id="sounds">
-		<tr>
-			{% for sound in sounds %}
-			<td>{{sounds::sound_element(s=sound)}}</td>
+
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>MLWS</title>
+		<link rel="stylesheet" href="css/index.css">
+		<link rel="stylesheet" href="css/sound.css">
+		<script>
+			var ws = new WebSocket(`ws://${window.location.host}/ws`)
+			ws.onmessage = x => console.log(x.data)
+		</script>
+	</head>
+
+	<body>
+		{% for repo, sounds in repos %}
+		<h3>{{repo}}</h3>
+		<table id="sounds">
+			<tr>
+				{% for sound in sounds %}
+				<td>{{sounds::sound_element(repo=repo,s=sound)}}</td>
 				{% if loop.index % 10 == 0 and not loop.last %}
-					</tr>
-					<tr>
+			</tr>
+			<tr>
 				{% endif %}
-			{% endfor %}
-		</tr>
-	</table>
-</body>
+				{% endfor %}
+			</tr>
+		</table>
+		{% endfor %}
+		<script>
+			ws.onmessage = data => {
+				console.log(data)
+				for (let el of document.getElementsByClassName("playing")) {
+					el.classList.remove("playing")
+				}
+				let json = JSON.parse(data.data)["Status"];
+				for (let s of json) {
+					let name = `${s[0][0]}/${s[0][1]}`;
+					let duration = s[1];
+					let total = s[2];
+					document.getElementById(name).children[1].innerHTML = `${duration.secs}s - ${total.secs}s`
+					document.getElementById(name).children[1].value = duration.secs
+					document.getElementById(name).children[1].max = total.secs
+					document.getElementById(name).classList.add("playing")
+				}
+			}
+			setInterval(() => {
+				console.log("Status")
+				ws.send(JSON.stringify({ Status: [] }))
+			}, 1000)
+
+			function click_sound(repo, name) {
+				if (document.getElementById(`${repo}/${name}`).classList.contains('playing')) {
+					ws.send(JSON.stringify({ Stop: [repo, name] }))
+				} else {
+					ws.send(JSON.stringify({ Play: [repo, name] }))
+				}
+			}
+		</script>
+	</body>
+
 </html>

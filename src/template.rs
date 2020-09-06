@@ -24,6 +24,6 @@ pub fn load(path: &str) -> String {
     TEMPLATES.render(path, &Context::new()).expect("Unexpect template error")
 }
 
-// pub fn render_context(path: &str, ctx: &Context) -> String {
-// 	TEMPLATES.render(path, ctx).expect("Unexpected template error")
-// }
+pub fn render_context(path: &str, ctx: &Context) -> String {
+	TEMPLATES.render(path, ctx).expect("Unexpected template error")
+}

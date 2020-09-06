@@ -1,4 +1,59 @@
 .sound {
-	width: 150px;
+	width    : 150px;
+	margin   : 30px 15px;
 	height: 150px;
+}
+
+.soundimg {
+	height: 150px;
+	position: relative;
+}
+
+.playpause {
+	border    : 0;
+	background: transparent;
+	box-sizing: border-box;
+	width     : 0;
+	height    : 74px;
+
+	border-color: transparent transparent transparent #6e6e6eab;
+	transition  : 100ms all ease;
+	cursor      : pointer;
+
+	/* play state */
+	border-style: solid;
+	
+	position: absolute;
+	bottom: 0;
+	margin: 38px;
+	visibility: hidden;
+}
+
+
+.sound.playing>.playpause {
+	visibility: visible;
+	border-width: 37px;
+}
+
+.sound_progress {
+	visibility: hidden;
+}
+
+.sound.playing>.sound_progress {
+	visibility: visible;
+}
+
+.playpause:hover {
+	visibility: visible;
+	border-color: transparent transparent transparent #72727283;
+	border-width: 37px 0 37px 60px;
+}
+
+.sound_img {
+	width : 150px;
+	height: 150px;
+}
+
+.hidden {
+	display: none;
 }
