@@ -1,6 +1,0 @@
-[submodule "mlws_lib"]
-	path = mlws_lib
-	url = https://github.com/Mr-Llama-s-Wonderful-Soundboard/mlws_lib.git
-[submodule "sounds"]
-	path = sounds
-	url = https://github.com/Mr-Llama-s-Wonderful-Soundboard/sounds.git
