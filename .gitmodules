@@ -1,3 +1,6 @@
 [submodule "mlws_lib"]
 	path = mlws_lib
 	url = https://github.com/Mr-Llama-s-Wonderful-Soundboard/mlws_lib.git
+[submodule "sounds/misc"]
+	path = sounds/misc
+	url = https://github.com/Mr-Llama-s-Wonderful-Soundboard/misc_sounds.git
