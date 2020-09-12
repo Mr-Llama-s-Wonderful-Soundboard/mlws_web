@@ -30,6 +30,8 @@
 			</tr>
 		</table>
 		{% endfor %}
+		<button onclick="ws.send(JSON.stringify({ StopAll: [] }))">Stop ALL sounds</button>
+		<a href="/settings"><button>Settings</button></a>
 		<script>
 			ws.onmessage = data => {
 				console.log(data)

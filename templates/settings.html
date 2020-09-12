@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Settings</title>
+		<link rel="stylesheet" href="/css/settings.css">
+		<script>
+
+			var onloadfns = []
+		</script>
+	</head>
+
+	<body>
+		<label for="input_device">Input device</label><input type="text" id="input_device">
+		<label for="output_device">Output device</label><input type="text" id="output_device">
+		<table>
+			{% for name,keys in config["hotkeys"] %}
+			<tr>{{name}}{{keys}}</tr>
+			{% endfor %}
+		</table>
+		<br>
+		<button onclick="for (f of onloadfns) {f(ws)}">Reload</button>
+		<table>
+			{% for repo in config["repos"] %}
+			<tr>
+				<td>
+					{% if repo[1] %}
+					{{repo[1].name}}
+					{% else %}
+					{{repo[0].zip_url}}
+					{% endif %}
+				</td>
+				<td>{% if repo[1] %}
+					<code>{{repo[1].version | trim}}</code>
+					{% else %}
+					Not downloaded
+					{% endif %}
+				</td>
+				<script>
+					onloadfns.push((ws) => {
+						ws.send('{"RepoStatus": {{loop.index0}}}')
+					})
+				</script>
+				<td id="REPO{{loop.index0}}">
+
+				</td>
+			</tr>
+			{% endfor %}
+		</table>
+		<script>
+			var ws = new WebSocket(`ws://${window.location.host}/ws`)
+
+			ws.onmessage = x => {
+				let data = JSON.parse(x.data)
+				console.log(data)
+				if (data.RepoStatus) {
+					repoStatus(data.RepoStatus)
+
+				}else if (data.Downloading) {
+					let inner
+					if (data.Downloading[2]) {
+						let percent = data.Downloading[1]
+						let p = document.createElement('progress')
+						p.value = percent
+						p.max = 100
+						inner = [p]
+					}else{
+						let b = data.Downloading[1]
+						inner = [
+							document.createTextNode(bytes(b)),
+						]
+					}
+					document.getElementById(`REPO${data.Downloading[0]}`).innerHTML = ""
+					document.getElementById(`REPO${data.Downloading[0]}`).append(...inner)
+				}else if (data.Installing) {
+					let inner = [document.createTextNode("Installing")]
+					
+					document.getElementById(`REPO${data.Downloading[0]}`).innerHTML = ""
+					document.getElementById(`REPO${data.Downloading[0]}`).append(...inner)
+				}else if (data.Done) {
+					let inner = [document.createTextNode("Done")]
+					
+					document.getElementById(`REPO${data.Downloading[0]}`).innerHTML = ""
+					document.getElementById(`REPO${data.Downloading[0]}`).append(...inner)
+				}
+			}
+
+			ws.onopen = () => {
+				for (f of onloadfns) {
+					f(ws)
+				}
+			}
+
+			function repoStatus(data) {
+				let inner
+				if (data[1].Latest) {
+					inner = [document.createTextNode('LATEST')]
+				}else{
+					let upto = data[1].Updatable[1]
+					let code = document.createElement('code')
+					let update = document.createElement('button')
+					update.append('Update')
+					update.onclick = () => {
+						ws.send(`{"UpdateRepo": ${data[0]}}`)
+					}
+					code.append(upto.trim())
+					inner = [
+						document.createTextNode('UPDATABLE TO VERSION '),
+						code,
+						update
+					]
+				}
+				document.getElementById(`REPO${data[0]}`).innerHTML = ""
+				document.getElementById(`REPO${data[0]}`).append(...inner)
+			}
+
+			function bytes(b) {
+				if (b <= 100) {
+					return `${b} B`
+				}else if (b <= 100000) {
+					return `${Math.round(b/100)/10} kB`
+				}else if (b <= 100000000) {
+					return `${Math.round(b/100000)/10} MB`
+				}else if (b <= 100000000000) {
+					return `${Math.round(b/100000000)/10} GB`
+				}
+			}
+		</script>
+	</body>
+
+</html>
