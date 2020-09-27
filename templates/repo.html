@@ -1,0 +1,18 @@
+<tr id="REPO{{repo[3]}}">
+	<td>
+		{% if repo[1] %}
+		{{repo[1].name}}
+		{% else %}
+		{{repo[0].zip_url}}
+		{% endif %}
+	</td>
+	<td>{% if repo[1] %}
+		<code>{{repo[1].version | trim}}</code>
+		{% else %}
+		Not downloaded
+		{% endif %}
+	</td>
+	<td>
+		{{repo[2]}}
+	</td>
+</tr>

@@ -16,12 +16,12 @@
 	</head>
 
 	<body>
-		{% for repo, sounds in repos %}
-		<h3>{{repo}}</h3>
+		{% for reposounds in repos %}
+		<h3>{{reposounds[0]}}</h3>
 		<table id="sounds">
 			<tr>
-				{% for sound in sounds %}
-				<td>{{sounds::sound_element(repo=repo,s=sound)}}</td>
+				{% for sound in reposounds[1] %}
+				<td>{{sounds::sound_element(repo=reposounds[0],s=sound)}}</td>
 				{% if loop.index % 10 == 0 and not loop.last %}
 			</tr>
 			<tr>

@@ -12,15 +12,12 @@ use crate::ServerData;
 
 use futures::{
     sink::SinkExt,
-    stream::{SplitSink, SplitStream, StreamExt},
+    stream::{SplitSink, StreamExt},
 };
 
 use std::time::Duration;
 
 use mlws_lib;
-use warp::Filter;
-
-use std::marker::Sync;
 
 #[derive(Debug, Serialize, Deserialize)]
 enum WsIncomingMessage {
@@ -28,178 +25,33 @@ enum WsIncomingMessage {
     Stop(String, String),
     StopAll(),
     Status(),
-    RepoStatus(usize),
+    RepoNum(),
     UpdateRepo(usize),
+    KeybindNum(),
+    Repos(),
+    Sounds(String, String),
+    AddKeyBind(),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 enum WsOutgoingMessage {
     Status(Vec<((String, String), Duration, Option<Duration>)>),
-    RepoStatus(usize, mlws_lib::downloader::Status),
+    RepoNum(usize),
+    RepoReload(usize),
     Downloading(usize, u64, bool),
     Installing(usize),
     Done(usize),
+    KeybindNum(usize),
+    Repos(Vec<String>),
+    Sounds(String, Vec<String>),
 }
 
-// impl Handler<WsIncomingMessage> for Ws {
-//     type Result = ();
-//     fn handle(&mut self, msg: WsIncomingMessage, ctx: &mut Self::Context) -> Self::Result {
-//         let (config, sound_cfg, (sender, receiver, _)) = &mut self.data;
-//         match msg {
-//             WsIncomingMessage::Play(repo, name) => {
-//                 if let Some(sound) = sound_cfg.get(&repo, &name) {
-//                     sender
-//                         .send(mlws_lib::sound::Message::PlaySound(
-//                             sound.clone(),
-//                             mlws_lib::sound::SoundDevices::Both,
-//                         ))
-//                         .expect("Error sending message");
-//                 }
-//             }
-//             WsIncomingMessage::Stop(repo, name) => {
-//                 if let Some(sound) = sound_cfg.get(&repo, &name) {
-//                     sender
-//                         .send(mlws_lib::sound::Message::StopSound(sound.clone()))
-//                         .expect("Error sending message");
-//                 }
-//             }
-//             WsIncomingMessage::StopAll() => sender
-//                 .send(mlws_lib::sound::Message::StopAll)
-//                 .expect("Error sending messagee"),
-//             WsIncomingMessage::Status() => {
-//                 sender
-//                     .send(mlws_lib::sound::Message::PlayStatus(vec![], 0.0))
-//                     .expect("Error sending message");
-//                 if let mlws_lib::sound::Message::PlayStatus(status, _) =
-//                     receiver.recv().expect("Error receiving")
-//                 {
-//                     let new_status = status
-//                         .iter()
-//                         .cloned()
-//                         .map(|(_, s, d, t)| ((s.repo, s.name), d, t))
-//                         .collect();
-
-//                     ctx.text(
-//                         serde_json::to_string(&WsOutgoingMessage::Status(new_status))
-//                             .expect("Error converting status"),
-//                     );
-//                 }
-//             }
-//             WsIncomingMessage::RepoStatus(i) => {
-//                 let (s, r) = mpsc::channel();
-//                 // let (repo, data) = &config.repos[i];
-//                 let cfg = config.clone();
-//                 std::thread::spawn(move || {
-//                     s.send(actix_rt::Runtime::new().unwrap().block_on(status(cfg, i)))
-//                 });
-//                 let status: mlws_lib::downloader::Status = r.recv().unwrap();
-//                 println!("Status: {:?}", status);
-//                 ctx.text(
-//                     serde_json::to_string(&WsOutgoingMessage::RepoStatus(i, status))
-//                         .expect("Error converting status"),
-//                 );
-//             }
-//             WsIncomingMessage::UpdateRepo(i) => {
-//                 let (s, r) = mpsc::channel();
-//                 let (s2, r2) = mpsc::channel();
-//                 let (repo, data) = config.repos[i].clone();
-//                 println!("UPDATE");
-//                 // std::thread::spawn(move || {
-//                 //     actix_rt::Runtime::new().unwrap().block_on(download(s, s2, repo, data, i));
-//                 // });
-//                 mlws_lib::downloader::download_threaded(
-//                     repo.clone(),
-//                     data.clone(),
-//                     move |p| {
-//                         println!("{:?}", p);
-//                         s2.send(match p {
-//                             mlws_lib::downloader::Progress::Downloading(a, l) => {
-//                                 if let Some(len) = l {
-//                                     WsOutgoingMessage::Downloading(
-//                                         i,
-//                                         (a as f64 * 100. / len as f64) as u64,
-//                                         true,
-//                                     )
-//                                 } else {
-//                                     WsOutgoingMessage::Downloading(i, a, false)
-//                                 }
-//                             }
-//                             mlws_lib::downloader::Progress::Installing() => {
-//                                 WsOutgoingMessage::Installing(i)
-//                             }
-//                             mlws_lib::downloader::Progress::Done() => WsOutgoingMessage::Done(i),
-//                         })
-//                         .expect("Error sending message")
-//                     },
-//                     s,
-//                 );
-
-//                 loop {
-//                     if let Ok(v) = r2.try_recv() {
-//                         println!("RECV: {:?}", v);
-//                         ctx.text(serde_json::to_string(&v).unwrap());
-
-//                         if let WsOutgoingMessage::Done(_) = v {
-//                             break;
-//                         }
-//                     }
-//                 }
-//                 config.repos[i].1 = r.recv().unwrap();
-//                 actix::Handler::handle(self, WsIncomingMessage::RepoStatus(i), ctx);
-//                 //self.handle(Ok(ws::Message::Text(serde_json::to_string(&WsIncomingMessage::RepoStatus(i)).unwrap())), ctx);
-//             }
-//         }
-//     }
+// async fn status(config: mlws_lib::config::Config, i: usize) -> mlws_lib::downloader::Status {
+//     let (repo, data) = &config.repos[i];
+//     println!("STATUS");
+//     mlws_lib::downloader::status(repo, data).await
 // }
 
-// /// Handler for ws::Message message
-// impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Ws {
-//     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-//         let (config, sound_cfg, (sender, receiver, _)) = &mut self.data;
-//         match msg {
-//             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
-//             Ok(ws::Message::Text(text)) => {
-//                 println!("WS: {}", text);
-//                 actix::Handler::handle(self, serde_json::from_str::<WsIncomingMessage>(&text).expect("Unexpected message"), ctx);
-//             }
-//             Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
-//             _ => (),
-//         }
-//     }
-// }
-
-async fn status(config: mlws_lib::config::Config, i: usize) -> mlws_lib::downloader::Status {
-    let (repo, data) = &config.repos[i];
-    println!("STATUS");
-    mlws_lib::downloader::status(repo, data).await
-}
-
-// async fn download(
-//     s: mpsc::Sender<Option<mlws_lib::config::DownloadedSoundRepo>>,
-//     s2: mpsc::Sender<WsOutgoingMessage>,
-//     repo: mlws_lib::config::SoundRepo,
-//     mut data: Option<mlws_lib::config::DownloadedSoundRepo>,
-//     i: usize,
-// ) {
-//     mlws_lib::downloader::download(&repo, &mut data, |p| {
-//         println!("Downloader: {:?}", p);
-//         s2.send(match p {
-//             mlws_lib::downloader::Progress::Downloading(a, l) => {
-//                 if let Some(len) = l {
-//                     WsOutgoingMessage::Downloading(i, (a as f64 * 100. / len as f64) as u64, true)
-//                 } else {
-//                     WsOutgoingMessage::Downloading(i, a, false)
-//                 }
-//             }
-//             mlws_lib::downloader::Progress::Installing() => WsOutgoingMessage::Installing(i),
-//             mlws_lib::downloader::Progress::Done() => WsOutgoingMessage::Done(i),
-//         })
-//         .expect("Error sending message")
-//     })
-//     .await;
-//     s.send(data).unwrap();
-// }
-// use futures::{stream::{StreamExt, SplitSink, SplitStream}, sink::SinkExt};
 pub async fn ws(ws: warp::ws::WebSocket, mut data: ServerData) {
     let (mut tx, mut rx) = ws.split();
     // let (send, recv) = mpsc::channel();
@@ -228,11 +80,11 @@ async fn handle(
     msg: WsIncomingMessage,
     tx: &mut SplitSink<warp::ws::WebSocket, warp::ws::Message>,
 ) {
-    let (config, sound_cfg, (sender, receiver, _)) =
+    let ((config, sound_cfg, (sender, receiver, _)), keybinds) =
         std::sync::Arc::get_mut(data).unwrap().get_mut().unwrap();
     match msg {
         WsIncomingMessage::Play(repo, name) => {
-            if let Some(sound) = sound_cfg.get(&repo, &name) {
+            if let Some(sound) = sound_cfg.read().unwrap().get(&repo, &name) {
                 sender
                     .send(mlws_lib::sound::Message::PlaySound(
                         sound.clone(),
@@ -242,7 +94,7 @@ async fn handle(
             }
         }
         WsIncomingMessage::Stop(repo, name) => {
-            if let Some(sound) = sound_cfg.get(&repo, &name) {
+            if let Some(sound) = sound_cfg.read().unwrap().get(&repo, &name) {
                 sender
                     .send(mlws_lib::sound::Message::StopSound(sound.clone()))
                     .expect("Error sending message");
@@ -267,19 +119,23 @@ async fn handle(
                 send(tx, WsOutgoingMessage::Status(new_status)).await;
             }
         }
-        WsIncomingMessage::RepoStatus(i) => {
+        WsIncomingMessage::RepoNum() => {
             // let (s, r) = mpsc::channel();
             // let (repo, data) = &config.repos[i];
             let cfg = config.clone();
 
-            let status = status(cfg, i).await;
-            println!("Status: {:?}", status);
-            send(tx, WsOutgoingMessage::RepoStatus(i, status)).await;
+            send(tx, WsOutgoingMessage::RepoNum(cfg.repos.len())).await;
+        }
+        WsIncomingMessage::KeybindNum() => {
+            // let (s, r) = mpsc::channel();
+            // let (repo, data) = &config.repos[i];
+
+            send(tx, WsOutgoingMessage::KeybindNum(keybinds.keys().len())).await;
         }
         WsIncomingMessage::UpdateRepo(i) => {
             let (s2, mut r2) = mpsc::unbounded_channel();
             let (s, mut r) = mpsc::unbounded_channel();
-            
+
             println!("UPDATE");
             // std::thread::spawn(move || {
             //     actix_rt::Runtime::new().unwrap().block_on(download(s, s2, repo, data, i));
@@ -290,30 +146,26 @@ async fn handle(
                 mlws_lib::downloader::download(&repo, &mut down, move |p| {
                     println!("{:?}", p);
                     s.clone()
-                    .send(match p {
-                        mlws_lib::downloader::Progress::Downloading(a, l) => {
-                            if let Some(len) = l {
-                                WsOutgoingMessage::Downloading(
-                                    i,
-                                    (a as f64 * 100. / len as f64) as u64,
-                                    true,
-                                )
-                            } else {
-                                WsOutgoingMessage::Downloading(i, a, false)
+                        .send(match p {
+                            mlws_lib::downloader::Progress::Downloading(a, l) => {
+                                if let Some(len) = l {
+                                    WsOutgoingMessage::Downloading(
+                                        i,
+                                        (a as f64 * 100. / len as f64) as u64,
+                                        true,
+                                    )
+                                } else {
+                                    WsOutgoingMessage::Downloading(i, a, false)
+                                }
                             }
-                        }
-                        mlws_lib::downloader::Progress::Installing() => {
-                            WsOutgoingMessage::Installing(i)
-                        }
-                        mlws_lib::downloader::Progress::Done() => WsOutgoingMessage::Done(i),
-                    })
-                    .expect("Error sending data");
-
-                }).await;
+                            mlws_lib::downloader::Progress::Installing() => WsOutgoingMessage::Installing(i),
+                            mlws_lib::downloader::Progress::Done() => WsOutgoingMessage::Done(i),
+                        })
+                        .expect("Error sending data");
+                })
+                .await;
                 s2.send((repo, down)).unwrap();
             });
-
-            
 
             loop {
                 if let Ok(v) = r.try_recv() {
@@ -326,19 +178,36 @@ async fn handle(
                 }
                 tokio::task::yield_now().await;
             }
-            
 
             config.repos[i] = r2.recv().await.expect("Error receiving data");
 
             config.save();
 
-            let cfg = config.clone();
+            // let cfg = config.clone();
 
-            let status = status(cfg, i).await;
+            // let status = status(cfg, i).await;
 
-            send(tx, WsOutgoingMessage::RepoStatus(i, status)).await;
+            send(tx, WsOutgoingMessage::RepoReload(i)).await;
             // handle(data, WsIncomingMessage::RepoStatus(i), tx).await;
             //self.handle(Ok(ws::Message::Text(serde_json::to_string(&WsIncomingMessage::RepoStatus(i)).unwrap())), ctx);
+        }
+        WsIncomingMessage::Repos() => {
+            let cfg: Vec<String> = config
+                .repos
+                .iter()
+                .map(|(_, name)| name)
+                .filter(|n| n.is_some())
+                .map(|n| n.clone().unwrap().name)
+                .collect();
+            send(tx, WsOutgoingMessage::Repos(cfg)).await;
+        }
+        WsIncomingMessage::Sounds(repo, i) => {
+            let cfg: Vec<String> = sound_cfg.read().unwrap().sounds.get(&repo).map(|x|x.keys().cloned().collect()).unwrap_or_default();
+            send(tx, WsOutgoingMessage::Sounds(i, cfg)).await;
+        }
+        WsIncomingMessage::AddKeyBind() => {
+            keybinds.add((String::new(), String::new()), vec![]);
+            send(tx, WsOutgoingMessage::KeybindNum(keybinds.keys().len())).await;
         }
     }
 }

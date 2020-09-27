@@ -1454,6 +1454,7 @@ dependencies = [
 name = "mlws_web"
 version = "0.1.0"
 dependencies = [
+ "crossbeam-channel",
  "futures",
  "lazy_static",
  "mime_guess",

@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 tokio = {version = "0.2.22", features=["rt-core", "macros", "sync"]}
+crossbeam-channel = "0.4.4"
 warp = "0.2.5"
 futures = "0.3.5"
 mime_guess = "2.0.3"

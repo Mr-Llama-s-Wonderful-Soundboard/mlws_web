@@ -7,8 +7,7 @@
 		<title>Settings</title>
 		<link rel="stylesheet" href="/css/settings.css">
 		<script>
-
-			var onloadfns = []
+			
 		</script>
 	</head>
 
@@ -21,36 +20,65 @@
 			{% endfor %}
 		</table>
 		<br>
-		<button onclick="for (f of onloadfns) {f(ws)}">Reload</button>
-		<table>
-			{% for repo in config["repos"] %}
-			<tr>
-				<td>
-					{% if repo[1] %}
-					{{repo[1].name}}
-					{% else %}
-					{{repo[0].zip_url}}
-					{% endif %}
-				</td>
-				<td>{% if repo[1] %}
-					<code>{{repo[1].version | trim}}</code>
-					{% else %}
-					Not downloaded
-					{% endif %}
-				</td>
-				<script>
-					onloadfns.push((ws) => {
-						ws.send('{"RepoStatus": {{loop.index0}}}')
-					})
-				</script>
-				<td id="REPO{{loop.index0}}">
-
-				</td>
-			</tr>
-			{% endfor %}
+		<button onclick="reload_repos()">Reload</button>
+		<table id="REPOS">
 		</table>
+
+		KEYBINDS <button onclick="ws.send(JSON.stringify({AddKeyBind: []}))">RELOAD</button>
+		<table id="KEYBINDS">
+
+		</table>
+
 		<script>
+
 			var ws = new WebSocket(`ws://${window.location.host}/ws`)
+
+			function update_repo(i) {
+				console.log(JSON.parse(`{"UpdateRepo": ${i}}`))
+				ws.send(`{"UpdateRepo": ${i}}`)
+			}
+
+			function reload() {
+				reload_repos()
+				reload_keys()
+			}
+
+			function reload_repos() {
+				ws.send('{"RepoNum": []}')
+			}
+
+			function reload_keys() {
+				ws.send('{"KeybindNum": []}')
+			}
+
+			function load_repo(i) {
+				fetch(`/repo/${i}`).then(response => response.text()).then(html => {
+					let repo = document.getElementById(`REPO${i}`)
+					if (repo) {
+						repo.outerHTML = html
+					} else {
+						document.getElementById('REPOS').innerHTML += (html)
+					}
+				})
+			}
+
+			function load_keybind(i) {
+				fetch(`/keybind/${i}`).then(response => response.text()).then(html => {
+					let repo = document.getElementById(`KEYBIND${i}`)
+					if (repo) {
+						repo.outerHTML = html
+					} else {
+						document.getElementById('KEYBINDS').innerHTML += (html)
+					}
+
+				})
+			}
+			function reload_sounds(i) {
+				let v = document.getElementById(i).children[0].children[0].value;
+				ws.send(`{"Sounds": ["${v}", "${i}"]}`)
+				// console.log('Loading keybind opts for', v);
+			}
+			ws.onopen = reload
 
 			ws.onmessage = x => {
 				let data = JSON.parse(x.data)
@@ -58,7 +86,7 @@
 				if (data.RepoStatus) {
 					repoStatus(data.RepoStatus)
 
-				}else if (data.Downloading) {
+				} else if (data.Downloading) {
 					let inner
 					if (data.Downloading[2]) {
 						let percent = data.Downloading[1]
@@ -66,30 +94,45 @@
 						p.value = percent
 						p.max = 100
 						inner = [p]
-					}else{
+					} else {
 						let b = data.Downloading[1]
 						inner = [
 							document.createTextNode(bytes(b)),
 						]
 					}
-					document.getElementById(`REPO${data.Downloading[0]}`).innerHTML = ""
-					document.getElementById(`REPO${data.Downloading[0]}`).append(...inner)
-				}else if (data.Installing) {
+					document.getElementById(`REPO${data.Downloading[0]}`).children[2].innerHTML = ""
+					document.getElementById(`REPO${data.Downloading[0]}`).children[2].append(...inner)
+				} else if (data.Installing) {
 					let inner = [document.createTextNode("Installing")]
-					
-					document.getElementById(`REPO${data.Downloading[0]}`).innerHTML = ""
-					document.getElementById(`REPO${data.Downloading[0]}`).append(...inner)
-				}else if (data.Done) {
-					let inner = [document.createTextNode("Done")]
-					
-					document.getElementById(`REPO${data.Downloading[0]}`).innerHTML = ""
-					document.getElementById(`REPO${data.Downloading[0]}`).append(...inner)
-				}
-			}
 
-			ws.onopen = () => {
-				for (f of onloadfns) {
-					f(ws)
+					document.getElementById(`REPO${data.Installing[0]}`).children[2].innerHTML = ""
+					document.getElementById(`REPO${data.Installing[0]}`).children[2].append(...inner)
+				} else if (data.Done) {
+					let inner = [document.createTextNode("Done")]
+
+					document.getElementById(`REPO${data.Done[0]}`).children[2].innerHTML = ""
+					document.getElementById(`REPO${data.Done[0]}`).children[2].append(...inner)
+				} else if (data.RepoNum) {
+					document.getElementById('REPOS').innerHTML += ''
+					for (let i = 0; i < data.RepoNum; i++) {
+						load_repo(i)
+					}
+				} else if (data.KeybindNum) {
+					document.getElementById('KEYBINDS').innerHTML += ''
+					for (let i = 0; i < data.KeybindNum; i++) {
+						load_keybind(i)
+					}
+				} else if (data.Sounds) {
+					let i = data.Sounds[0];
+					let sounds = data.Sounds[1];
+					let s = document.getElementById(i).children[0].children[1]
+					s.innerHTML = '';
+					for(let sound of sounds) {
+						let o = document.createElement('option');
+						o.value = sound
+						o.innerText = sound
+						s.add(o)
+					}
 				}
 			}
 
@@ -97,7 +140,7 @@
 				let inner
 				if (data[1].Latest) {
 					inner = [document.createTextNode('LATEST')]
-				}else{
+				} else {
 					let upto = data[1].Updatable[1]
 					let code = document.createElement('code')
 					let update = document.createElement('button')
@@ -119,12 +162,12 @@
 			function bytes(b) {
 				if (b <= 100) {
 					return `${b} B`
-				}else if (b <= 100000) {
-					return `${Math.round(b/100)/10} kB`
-				}else if (b <= 100000000) {
-					return `${Math.round(b/100000)/10} MB`
-				}else if (b <= 100000000000) {
-					return `${Math.round(b/100000000)/10} GB`
+				} else if (b <= 100000) {
+					return `${Math.round(b / 100) / 10} kB`
+				} else if (b <= 100000000) {
+					return `${Math.round(b / 100000) / 10} MB`
+				} else if (b <= 100000000000) {
+					return `${Math.round(b / 100000000) / 10} GB`
 				}
 			}
 		</script>

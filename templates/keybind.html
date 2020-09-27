@@ -1,0 +1,17 @@
+<tr id="KEYBIND{{keybind[2]}}">
+	<td>
+		<select id="key_repo" onchange="reload_sounds('KEYBIND{{keybind[2]}}')">
+			{% for repo in repos %}
+				<option value="{{repo}}" {% if repo == keybind[0][0] %} selected {% endif %} >{{repo}}</option>
+			{% endfor %}
+		</select>
+		<select id="key_sound">
+			{% for sound in sounds %}
+				<option value="{{sound}}" {% if sound == keybind[0][1] %} selected {% endif %} >{{sound}}</option>
+			{% endfor %}
+		</select>
+	</td>
+	<td>
+		{{keybind[1]}}
+	</td>
+</tr>

@@ -15,72 +15,28 @@ use warp;
 use warp::{reply::Reply, Filter};
 
 use std::sync::Arc;
-use std::sync::RwLock;
+use std::sync::{Mutex, RwLock};
 
 use urldecode as url;
 
+mod keybind;
 mod template;
 mod ws;
 
-pub type ServerData = Arc<RwLock<(
-    Config,
-    SoundConfig,
-    (
-        mlws_lib::SoundSender,
-        mlws_lib::SoundReceiver,
-        mlws_lib::SoundLoop,
-    ),
-)>>;
-
-// async fn index(data: ServerData) -> impl Fn() -> String {
-//     ||{
-//         let mut ctx = Context::new();
-//         ctx.insert("repos", &data.1.json_sounds());
-//         template::render_context(
-//             "index.html",
-//             &ctx
-//         )
-//     }
-// }
-
-// async fn settings(data: ServerData) -> impl Fn() -> String {
-//     ||{
-//         let mut ctx = Context::new();
-//         ctx.insert("config", &data.0);
-//         ctx.insert("repos", &data.1.json_sounds());
-//         template::render_context(
-//             "settings.html",
-//             &ctx
-//         )
-//     }
-// }
-
-// async fn css_handler(p: String) -> String {
-//     template::load(&format!("css/{}", p))
-// }
-
-// async fn sound_img_handler(data: ServerData) -> impl Fn(String, String) -> String {
-//     |repo, name |{
-//         match data.1.get(&repo, &name) {
-//             Some(sound) => {
-//                 let mut buf = Vec::new();
-//                 File::open(sound.img.clone().unwrap()).expect("Error opening file").read_to_end(&mut buf).expect("Error reading file");
-//                 warp::reply::Response::new(buf)
-//             },
-//             None => 404
-//         }
-//     }
-// }
-
-// async fn sound_play_handler(data: web::Data<ServerData>, p: web::Path<(String,String)>) -> impl Responder {
-//     match data.1.get(&p.0, &p.1) {
-//         Some(sound) => {
-//             data.2.0.send(mlws_lib::sound::Message::PlaySound(sound.clone(), mlws_lib::sound::SoundDevices::Both)).expect("Error sending message");
-//             HttpResponse::Ok()
-//         },
-//         None => HttpResponse::NotFound()
-//     }
-// }
+pub type ServerData = Arc<
+    RwLock<(
+        (
+            Config,
+            Arc<RwLock<SoundConfig>>,
+            (
+                mlws_lib::SoundSender,
+                mlws_lib::SoundReceiver,
+                mlws_lib::SoundLoop,
+            ),
+        ),
+        keybind::KeyBindClient, // Arc<Mutex<mlws_lib::keybind::KeyBindings<mlws_lib::sound::Message, F, (String, String)>>>
+    )>,
+>;
 
 #[tokio::main]
 async fn main() {
@@ -90,25 +46,64 @@ async fn main() {
     println!("Loading config");
     let mut config = Config::load();
     println!("Loading sounds");
-    let sounds = SoundConfig::load(&mut config).await;
+    let sounds = Arc::new(RwLock::new(SoundConfig::load(&mut config).await));
     config.save();
-    let mut keybinds = mlws_lib::keybind::KeyBindings::new(
+    let sounds_clone = sounds.clone();
+    let mut keybinds = keybind::KeyBinds::new(mlws_lib::keybind::KeyBindings::new(
         sound_sender.clone(),
         config.clone(),
-        |(repo, name)| {
+        move |(repo, name)| {
             mlws_lib::sound::Message::PlaySound(
-                sounds.get(&repo, &name).unwrap().clone(),
+                sounds_clone
+                    .read()
+                    .unwrap()
+                    .get(&repo, &name)
+                    .unwrap()
+                    .clone(),
                 mlws_lib::sound::SoundDevices::Both,
             )
         },
-    );
+    ));
+
+    // {
+    //     let conn = keybinds.connection();
+    //     conn.add(
+    //         ("Team Fortress 2".into(), "AAAAAAAAAA".into()),
+    //         vec![mlws_lib::rdev::Key::KeyA],
+    //     );
+    // }
+
+    let conn = keybinds.connection();
 
     let data = (config, sounds, (sound_sender, sound_receiver, soundloop));
+
+    std::thread::spawn(move || {
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            loop {
+                keybinds.tick().await;
+            }
+        })
+    });
 
     let data_idx = data.clone();
     let index = warp::path::end().map(move || {
         let mut ctx = Context::new();
-        ctx.insert("repos", &data_idx.1.json_sounds());
+        let mut repos = data_idx
+        .1
+        .read()
+        .unwrap()
+        .json_sounds()
+        .iter()
+        .map(|(a, b)|(a.clone(), b.clone()))
+        .map(|(k, mut s)| {s.sort(); (k, s)})
+        .collect::<Vec<(String, Vec<String>)>>();
+        repos.sort_by(|(a, _), (b, _)|a.cmp(b));
+
+        ctx.insert(
+            "repos",
+            &repos,
+        );
         warp::reply::html(template::render_context("index.html", &ctx))
     });
 
@@ -116,19 +111,24 @@ async fn main() {
     let settings = warp::path!("settings").map(move || {
         let mut ctx = Context::new();
         ctx.insert("config", &data_sett.0);
-        ctx.insert("repos", &data_sett.1.json_sounds());
+        ctx.insert("repos", &data_sett.0.repos);
         warp::reply::html(template::render_context("settings.html", &ctx))
     });
 
-    
-    let css = warp::path!("css" / String).map(|p| warp::reply::with_header(template::load(&format!("css/{}", url::decode(p))), "Content-Type", "text/css"));
-    
+    let css = warp::path!("css" / String).map(|p| {
+        warp::reply::with_header(
+            template::load(&format!("css/{}", url::decode(p))),
+            "Content-Type",
+            "text/css",
+        )
+    });
+
     let data_img = data.clone();
     let sound_img = warp::path!("sound" / String / String / "img").map(move |repo, name| {
         let repo = url::decode(repo);
         let name = url::decode(name);
         println!("REPO: {}; SOUND: {}", repo, name);
-        match data_img.1.get(&repo, &name) {
+        match data_img.1.read().unwrap().get(&repo, &name) {
             Some(sound) => {
                 let mut buf = Vec::new();
                 File::open(sound.img.clone().unwrap())
@@ -147,16 +147,88 @@ async fn main() {
             None => warp::http::StatusCode::NOT_FOUND.into_response(),
         }
     });
-    
-    let ws = warp::path("ws").and(warp::ws()).map(
-        move |ws: warp::ws::Ws| {
-            let data = Arc::new(RwLock::new(data.clone()));
-            let res = ws.on_upgrade(move |ws| ws::ws(ws, data));
-            res
-        }
-    );
 
-    let route = index.or(settings).or(css).or(sound_img).or(ws);
+    //let data_repo = data.clone();
+    let repo = warp::path!("repo" / usize).map(move |id: usize| {
+        let cfg = mlws_lib::config::Config::load();
+        if let Some((repo, down)) = cfg.repos.get(id).map(|x| x.clone()) {
+            let (s, r) = std::sync::mpsc::channel();
+            let (repo_clone, down_clone) = (repo.clone(), down.clone());
+            std::thread::spawn(move || {
+                let mut rt = tokio::runtime::Runtime::new().unwrap();
+                s.send(rt.block_on(async {
+                    mlws_lib::downloader::status(&repo_clone, &down_clone).await
+                }))
+                .unwrap();
+            });
+            let status = r.recv().unwrap();
+            let status_str = match status {
+                mlws_lib::downloader::Status::Latest(_) => format!("Latest"),
+                mlws_lib::downloader::Status::Updatable(_, latest) => format!(
+                    "Updatable <code>{}</code> <button onclick=\"update_repo({})\">UPDATE</button>",
+                    latest.trim(),
+                    id
+                ),
+            };
+            let mut ctx = Context::new();
+            ctx.insert("repo", &(repo, down, status_str, id));
+            warp::reply::html(template::render_context_no_escapes("repo.html", &ctx))
+                .into_response()
+        } else {
+            warp::http::StatusCode::NOT_FOUND.into_response()
+        }
+    });
+
+    let conf_key = data.0.clone();
+    let sound_key = data.1.clone();
+    let keybind_conn = conn.clone();
+    let keybind = warp::path!("keybind" / usize).map(move |id: usize| {
+        if let Some(((repo, name), keys)) = keybind_conn.keys().get(id).map(Clone::clone) {
+            let keys = keys
+                .iter()
+                .map(|x| format!("{}", x))
+                .collect::<Vec<String>>()
+                .join(" + ");
+            let mut ctx = Context::new();
+            let sounds: Vec<String> = sound_key
+                .read()
+                .unwrap()
+                .sounds
+                .get(&repo)
+                .map(|x| x.keys().cloned().collect())
+                .unwrap_or_default();
+            ctx.insert("keybind", &((repo, name), keys, id));
+            let repos: Vec<String> = conf_key
+                .repos
+                .iter()
+                .map(|(_, name)| name)
+                .filter(|n| n.is_some())
+                .map(|n| n.clone().unwrap().name)
+                .collect();
+            ctx.insert("repos", &repos);
+            ctx.insert("sounds", &sounds);
+            warp::reply::html(template::render_context_no_escapes("keybind.html", &ctx))
+                .into_response()
+        } else {
+            warp::http::StatusCode::NOT_FOUND.into_response()
+        }
+    });
+
+    let ws = warp::path("ws")
+        .and(warp::ws())
+        .map(move |ws: warp::ws::Ws| {
+            let data_ws = Arc::new(RwLock::new((data.clone(), conn.clone())));
+            let res = ws.on_upgrade(move |ws| ws::ws(ws, data_ws));
+            res
+        });
+
+    let route = index
+        .or(settings)
+        .or(css)
+        .or(sound_img)
+        .or(ws)
+        .or(repo)
+        .or(keybind);
     // std::thread::spawn(move || {
     //     let mut rt = tokio::runtime::Runtime::new().unwrap();
 
