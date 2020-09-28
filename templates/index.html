@@ -7,6 +7,7 @@
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>MLWS</title>
+		<link href="/halfmoon/css/halfmoon-variables.min.css" rel="stylesheet" />
 		<link rel="stylesheet" href="css/index.css">
 		<link rel="stylesheet" href="css/sound.css">
 		<script>
@@ -15,7 +16,7 @@
 		</script>
 	</head>
 
-	<body>
+	<body class="with-custom-webkit-scrollbars with-custom-css-scrollbars" data-set-preferred-theme-onload="true">
 		{% for reposounds in repos %}
 		<h3>{{reposounds[0]}}</h3>
 		<table id="sounds">
@@ -30,8 +31,9 @@
 			</tr>
 		</table>
 		{% endfor %}
-		<button onclick="ws.send(JSON.stringify({ StopAll: [] }))">Stop ALL sounds</button>
-		<a href="/settings"><button>Settings</button></a>
+		<button class="btn btn-danger" onclick="ws.send(JSON.stringify({ StopAll: [] }))">Stop ALL sounds</button>
+		<button class="btn btn-primary" onclick="window.location.href = '/settings'">Settings</button>
+		<script src="/halfmoon/js/halfmoon.min.js"></script>
 		<script>
 			ws.onmessage = data => {
 				console.log(data)
@@ -43,9 +45,9 @@
 					let name = `${s[0][0]}/${s[0][1]}`;
 					let duration = s[1];
 					let total = s[2];
-					document.getElementById(name).children[1].innerHTML = `${duration.secs}s - ${total.secs}s`
-					document.getElementById(name).children[1].value = duration.secs
-					document.getElementById(name).children[1].max = total.secs
+					document.getElementById(name).children[2].innerHTML = `${duration.secs}s - ${total.secs}s`
+					document.getElementById(name).children[2].value = duration.secs
+					document.getElementById(name).children[2].max = total.secs
 					document.getElementById(name).classList.add("playing")
 				}
 			}

@@ -19,7 +19,10 @@ use std::sync::{Mutex, RwLock};
 
 use urldecode as url;
 
+use structopt::StructOpt;
+
 mod keybind;
+mod opts;
 mod template;
 mod ws;
 
@@ -40,6 +43,7 @@ pub type ServerData = Arc<
 
 #[tokio::main]
 async fn main() {
+    let opts = opts::Opt::from_args();
     println!("Setting up mlws");
     let (sound_sender, sound_receiver, mut soundloop) = mlws_lib::setup();
     soundloop.run().expect("Error starting soundloop");
@@ -86,32 +90,32 @@ async fn main() {
         })
     });
 
-    let data_idx = data.clone();
+    let data_idx = data.1.clone();
     let index = warp::path::end().map(move || {
         let mut ctx = Context::new();
         let mut repos = data_idx
-        .1
-        .read()
-        .unwrap()
-        .json_sounds()
-        .iter()
-        .map(|(a, b)|(a.clone(), b.clone()))
-        .map(|(k, mut s)| {s.sort(); (k, s)})
-        .collect::<Vec<(String, Vec<String>)>>();
-        repos.sort_by(|(a, _), (b, _)|a.cmp(b));
+            .read()
+            .unwrap()
+            .json_sounds()
+            .iter()
+            .map(|(a, b)| (a.clone(), b.clone()))
+            .map(|(k, mut s)| {
+                s.sort();
+                (k, s)
+            })
+            .collect::<Vec<(String, Vec<String>)>>();
+        repos.sort_by(|(a, _), (b, _)| a.cmp(b));
 
-        ctx.insert(
-            "repos",
-            &repos,
-        );
+        ctx.insert("repos", &repos);
         warp::reply::html(template::render_context("index.html", &ctx))
     });
 
-    let data_sett = data.clone();
+    // let data_sett = data.clone();
     let settings = warp::path!("settings").map(move || {
         let mut ctx = Context::new();
-        ctx.insert("config", &data_sett.0);
-        ctx.insert("repos", &data_sett.0.repos);
+        let cfg = mlws_lib::config::Config::load();
+        ctx.insert("config", &cfg);
+        ctx.insert("repos", &cfg.repos);
         warp::reply::html(template::render_context("settings.html", &ctx))
     });
 
@@ -123,12 +127,28 @@ async fn main() {
         )
     });
 
-    let data_img = data.clone();
+    let halfmoon_css = warp::path!("halfmoon" / "css" / String).map(|p| {
+        warp::reply::with_header(
+            template::load(&format!("halfmoon/css/{}", url::decode(p))),
+            "Content-Type",
+            "text/css",
+        )
+    });
+
+    let halfmoon_js = warp::path!("halfmoon" / "js" / String).map(|p| {
+        warp::reply::with_header(
+            template::load(&format!("halfmoon/js/{}", url::decode(p))),
+            "Content-Type",
+            "text/javascript",
+        )
+    });
+
+    let data_img = data.1.clone();
     let sound_img = warp::path!("sound" / String / String / "img").map(move |repo, name| {
         let repo = url::decode(repo);
         let name = url::decode(name);
         println!("REPO: {}; SOUND: {}", repo, name);
-        match data_img.1.read().unwrap().get(&repo, &name) {
+        match data_img.read().unwrap().get(&repo, &name) {
             Some(sound) => {
                 let mut buf = Vec::new();
                 File::open(sound.img.clone().unwrap())
@@ -179,7 +199,7 @@ async fn main() {
         }
     });
 
-    let conf_key = data.0.clone();
+    // let conf_key = data.0.clone();
     let sound_key = data.1.clone();
     let keybind_conn = conn.clone();
     let keybind = warp::path!("keybind" / usize).map(move |id: usize| {
@@ -198,7 +218,7 @@ async fn main() {
                 .map(|x| x.keys().cloned().collect())
                 .unwrap_or_default();
             ctx.insert("keybind", &((repo, name), keys, id));
-            let repos: Vec<String> = conf_key
+            let repos: Vec<String> = mlws_lib::config::Config::load()
                 .repos
                 .iter()
                 .map(|(_, name)| name)
@@ -225,6 +245,8 @@ async fn main() {
     let route = index
         .or(settings)
         .or(css)
+        .or(halfmoon_css)
+        .or(halfmoon_js)
         .or(sound_img)
         .or(ws)
         .or(repo)
@@ -236,11 +258,28 @@ async fn main() {
     //             warp::serve(route_clone).run("192.168.1.66:8088".parse::<std::net::SocketAddr>().unwrap())
     //         })
     //     });
+    // let route_clone = route.clone();
+    // std::thread::spawn(move ||{
+    //         let mut rt = tokio::runtime::Runtime::new().unwrap();
+    //         rt.block_on(warp::serve(route_clone).run("127.0.0.1:8088".parse::<std::net::SocketAddr>().unwrap()))
+    //     }
+    // );
 
-    warp::serve(route)
-        .run("192.168.1.66:8088".parse::<std::net::SocketAddr>().unwrap())
-        .await;
+    // warp::serve(route)
+    //     .run("192.168.1.66:8088".parse::<std::net::SocketAddr>().unwrap())
+    //     .await;
 
+    for ip in opts.ip {
+        let route = route.clone();
+        let ip = format!("{}:{}", ip, opts.port);
+        println!("IP: {}", ip);
+        std::thread::spawn(move || {
+            let mut rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(warp::serve(route).run(ip.parse::<std::net::SocketAddr>().unwrap()));
+        });
+    }
+
+    loop {}
     // sound_sender.send(mlws_lib::sound::Message::PlaySound(SoundConfig::load().get(&String::from("Our anthem")).unwrap().clone(), mlws_lib::sound::SoundDevices::Both)).expect("Error sending message");
     // HttpServer::new(move || {
     //     let sender = sound_sender.clone();

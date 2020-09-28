@@ -1,7 +1,7 @@
 .sound {
 	width    : 150px;
-	margin   : 30px 15px;
-	height: 150px;
+	margin   : 5px 15px;
+	/* height: 150px; */
 }
 
 .soundimg {
@@ -52,6 +52,16 @@
 .sound_img {
 	width : 150px;
 	height: 150px;
+	margin-top: 10px;
+	/* margin-bottom: 10px; */
+	-webkit-filter: drop-shadow(2px 2px 2px white)
+					  drop-shadow(-2px -2px 2px white)
+					  drop-shadow(-2px 2px 2px white)
+					  drop-shadow(2px -2px 2px white);
+	filter: drop-shadow(2px 2px 2px white) 
+			  drop-shadow(-2px -2px 2px white)
+			  drop-shadow(2px -2px 2px white)
+			  drop-shadow(-2px 2px 2px white);
 }
 
 .hidden {

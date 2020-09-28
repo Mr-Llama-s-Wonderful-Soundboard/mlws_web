@@ -1,6 +1,6 @@
 {% macro sound_element(repo,s) %}
 <div class="sound" id="{{repo}}/{{ s }}" onclick="click_sound('{{repo}}','{{s}}')">
-    {{ s }}
+    <span>{{ s }}</span>
     <div class="soundimg">
         <img src="/sound/{{repo}}/{{ s }}/img" alt="{{s}} image" class="sound_img">
         <div class="playpause"></div>

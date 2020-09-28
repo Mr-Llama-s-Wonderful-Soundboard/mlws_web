@@ -158,7 +158,9 @@ async fn handle(
                                     WsOutgoingMessage::Downloading(i, a, false)
                                 }
                             }
-                            mlws_lib::downloader::Progress::Installing() => WsOutgoingMessage::Installing(i),
+                            mlws_lib::downloader::Progress::Installing() => {
+                                WsOutgoingMessage::Installing(i)
+                            }
                             mlws_lib::downloader::Progress::Done() => WsOutgoingMessage::Done(i),
                         })
                         .expect("Error sending data");
@@ -202,7 +204,13 @@ async fn handle(
             send(tx, WsOutgoingMessage::Repos(cfg)).await;
         }
         WsIncomingMessage::Sounds(repo, i) => {
-            let cfg: Vec<String> = sound_cfg.read().unwrap().sounds.get(&repo).map(|x|x.keys().cloned().collect()).unwrap_or_default();
+            let cfg: Vec<String> = sound_cfg
+                .read()
+                .unwrap()
+                .sounds
+                .get(&repo)
+                .map(|x| x.keys().cloned().collect())
+                .unwrap_or_default();
             send(tx, WsOutgoingMessage::Sounds(i, cfg)).await;
         }
         WsIncomingMessage::AddKeyBind() => {
