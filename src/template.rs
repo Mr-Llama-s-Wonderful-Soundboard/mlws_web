@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 
 use tera::Context;
 use tera::Tera;
-use serde::Serialize;
+// use serde::Serialize;
 
 lazy_static! {
     pub static ref TEMPLATES: Tera = {
@@ -29,9 +29,9 @@ lazy_static! {
     };
 }
 
-pub fn render<T: Serialize>(path: &str, s: T) -> String {
-	TEMPLATES.render(path, &Context::from_serialize(s).expect("Unexpected serialization problem")).expect("Unexpect template error")
-}
+// pub fn render<T: Serialize>(path: &str, s: T) -> String {
+// 	TEMPLATES.render(path, &Context::from_serialize(s).expect("Unexpected serialization problem")).expect("Unexpect template error")
+// }
 
 pub fn load(path: &str) -> String {
     TEMPLATES.render(path, &Context::new()).expect("Unexpect template error")

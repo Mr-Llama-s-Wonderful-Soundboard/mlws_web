@@ -46,12 +46,6 @@ enum WsOutgoingMessage {
     Sounds(String, Vec<String>),
 }
 
-// async fn status(config: mlws_lib::config::Config, i: usize) -> mlws_lib::downloader::Status {
-//     let (repo, data) = &config.repos[i];
-//     println!("STATUS");
-//     mlws_lib::downloader::status(repo, data).await
-// }
-
 pub async fn ws(ws: warp::ws::WebSocket, mut data: ServerData) {
     let (mut tx, mut rx) = ws.split();
     // let (send, recv) = mpsc::channel();
@@ -141,7 +135,7 @@ async fn handle(
             //     actix_rt::Runtime::new().unwrap().block_on(download(s, s2, repo, data, i));
             // });
             let repos_clone = config.repos[i].clone();
-            let j = tokio::spawn(async move {
+            tokio::spawn(async move {
                 let (repo, mut down) = repos_clone;
                 mlws_lib::downloader::download(&repo, &mut down, move |p| {
                     println!("{:?}", p);

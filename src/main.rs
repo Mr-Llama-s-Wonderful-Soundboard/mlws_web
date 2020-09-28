@@ -15,7 +15,7 @@ use warp;
 use warp::{reply::Reply, Filter};
 
 use std::sync::Arc;
-use std::sync::{Mutex, RwLock};
+use std::sync::{RwLock};
 
 use urldecode as url;
 
@@ -251,23 +251,6 @@ async fn main() {
         .or(ws)
         .or(repo)
         .or(keybind);
-    // std::thread::spawn(move || {
-    //     let mut rt = tokio::runtime::Runtime::new().unwrap();
-
-    //     rt.block_on(async move {
-    //             warp::serve(route_clone).run("192.168.1.66:8088".parse::<std::net::SocketAddr>().unwrap())
-    //         })
-    //     });
-    // let route_clone = route.clone();
-    // std::thread::spawn(move ||{
-    //         let mut rt = tokio::runtime::Runtime::new().unwrap();
-    //         rt.block_on(warp::serve(route_clone).run("127.0.0.1:8088".parse::<std::net::SocketAddr>().unwrap()))
-    //     }
-    // );
-
-    // warp::serve(route)
-    //     .run("192.168.1.66:8088".parse::<std::net::SocketAddr>().unwrap())
-    //     .await;
 
     for ip in opts.ip {
         let route = route.clone();
@@ -280,24 +263,4 @@ async fn main() {
     }
 
     loop {}
-    // sound_sender.send(mlws_lib::sound::Message::PlaySound(SoundConfig::load().get(&String::from("Our anthem")).unwrap().clone(), mlws_lib::sound::SoundDevices::Both)).expect("Error sending message");
-    // HttpServer::new(move || {
-    //     let sender = sound_sender.clone();
-    //     let receiver = sound_receiver.clone();
-    //     let soundloop = soundloop.clone();
-    //     let config = config.clone();
-    //     let sound_config = sounds.clone();
-    //     App::new()
-    //         .data((config, sound_config, (sender, receiver, soundloop)))
-    //         .route("/", web::get().to(index))
-    //         .route("/settings", web::get().to(settings))
-    //         .route("/ws", web::get().to(ws::ws))
-    //         .route("/css/{file}", web::get().to(css_handler))
-    //         // .route("/img/{name}", web::get().to(img_handler))
-    //         .route("/sound/{repo}/{name}/img", web::get().to(sound_img_handler))
-    //         .route("/sound/{repo}/{name}/play", web::get().to(sound_play_handler))
-    // })
-    // .bind("127.0.0.1:8088")?.bind("192.168.1.66:8088")?
-    // .run()
-    // .await
 }
