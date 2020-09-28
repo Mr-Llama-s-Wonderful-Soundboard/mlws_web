@@ -5,3 +5,10 @@ body {
 #sounds {
 	margin: auto;
 }
+
+/* Responsive */
+@media (max-width: 1366px) {
+	#sounds {
+		margin: auto 5px;
+	}
+}

@@ -1,3 +1,9 @@
+.soundname {
+	text-overflow: word-wrap;
+	width: 150px;
+	text-align: center;
+}
+
 .sound {
 	width    : 150px;
 	margin   : 5px 15px;
@@ -7,6 +13,7 @@
 .soundimg {
 	height: 150px;
 	position: relative;
+	text-align: center;
 }
 
 .playpause {
@@ -66,4 +73,27 @@
 
 .hidden {
 	display: none;
+}
+
+/* Responsive */
+@media (max-width: 1366px) {
+	.sound {
+		width    : 90px;
+		margin   : 30px 15px;
+		height: 90px;
+	}
+	.soundimg{
+		height: 75px;
+	}
+	.sound_img {
+		width : 75px;
+		height: 75px;
+	}
+	.soundname {
+		width: 75px;
+	}
+	.sound_progress {
+		text-align: center;
+		width: 90px;
+	}
 }

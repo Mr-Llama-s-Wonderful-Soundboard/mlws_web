@@ -45,9 +45,9 @@
 					let name = `${s[0][0]}/${s[0][1]}`;
 					let duration = s[1];
 					let total = s[2];
-					document.getElementById(name).children[2].innerHTML = `${duration.secs}s - ${total.secs}s`
-					document.getElementById(name).children[2].value = duration.secs
-					document.getElementById(name).children[2].max = total.secs
+					document.getElementById(name).getElementsByClassName("sound_progress")[0].innerHTML = `${duration.secs}s - ${total.secs}s`
+					document.getElementById(name).getElementsByClassName("sound_progress")[0].value = duration.secs
+					document.getElementById(name).getElementsByClassName("sound_progress")[0].max = total.secs
 					document.getElementById(name).classList.add("playing")
 				}
 			}
