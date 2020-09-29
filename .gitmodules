@@ -7,3 +7,6 @@
 [submodule "sounds/tf2"]
 	path = sounds/tf2
 	url = https://github.com/Mr-Llama-s-Wonderful-Soundboard/tf2_sounds.git
+[submodule "binfs"]
+	path = binfs
+	url = https://github.com/Mr-Llama-s-Wonderful-Soundboard/binfs.git
