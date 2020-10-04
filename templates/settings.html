@@ -26,9 +26,25 @@
 
 		KEYBINDS <button onclick="ws.send(JSON.stringify({AddKeyBind: []}))">RELOAD</button>
 		<table id="KEYBINDS">
-
+			
 		</table>
-
+		<table>
+			<tr id="KEYBIND_NEW">
+				<td>
+					<select id="key_repo" onchange="reload_sounds('KEYBIND_NEW')">
+						{% for repo in repos %}
+							<option value="{{repo[1].name}}" >{{repo[1].name}}</option>
+						{% endfor %}
+					</select>
+					<select id="key_sound">
+						
+					</select>
+				</td>
+				<td>
+					<button onclick="add_key()">Add</button>
+				</td>
+			</tr>
+		</table>
 		<script>
 
 			var ws = new WebSocket(`ws://${window.location.host}/ws`)
@@ -41,6 +57,7 @@
 			function reload() {
 				reload_repos()
 				reload_keys()
+				reload_sounds('KEYBIND_NEW')
 			}
 
 			function reload_repos() {
@@ -49,6 +66,19 @@
 
 			function reload_keys() {
 				ws.send('{"KeybindNum": []}')
+			}
+
+			function add_key() {
+				let repo = document.getElementById('KEYBIND_NEW').children[0].children[0].value;
+				let sound = document.getElementById('KEYBIND_NEW').children[0].children[1].value;
+
+				ws.send(`{"AddKeyBind": ["${repo}", "${sound}"]}`)
+			}
+
+			function send(name, val) {
+				let x = {}
+				x[name] = val
+				ws.send(JSON.stringify(x))
 			}
 
 			function load_repo(i) {
@@ -74,10 +104,13 @@
 				})
 			}
 			function reload_sounds(i) {
+
 				let v = document.getElementById(i).children[0].children[0].value;
 				ws.send(`{"Sounds": ["${v}", "${i}"]}`)
 				// console.log('Loading keybind opts for', v);
 			}
+
+
 			ws.onopen = reload
 
 			ws.onmessage = x => {

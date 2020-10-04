@@ -10,3 +10,6 @@
 [submodule "binfs"]
 	path = binfs
 	url = https://github.com/Mr-Llama-s-Wonderful-Soundboard/binfs.git
+[submodule "server_client"]
+	path = server_client
+	url = https://github.com/Mr-Llama-s-Wonderful-Soundboard/server_client.git

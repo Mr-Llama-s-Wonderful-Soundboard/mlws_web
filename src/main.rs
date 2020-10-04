@@ -37,7 +37,7 @@ pub type ServerData = Arc<
                 mlws_lib::SoundLoop,
             ),
         ),
-        keybind::KeyBindClient, // Arc<Mutex<mlws_lib::keybind::KeyBindings<mlws_lib::sound::Message, F, (String, String)>>>
+        keybind::KeybindsClient, // Arc<Mutex<mlws_lib::keybind::KeyBindings<mlws_lib::sound::Message, F, (String, String)>>>
     )>,
 >;
 
@@ -53,7 +53,7 @@ async fn main() {
     let sounds = Arc::new(RwLock::new(SoundConfig::load(&mut config).await));
     config.save();
     let sounds_clone = sounds.clone();
-    let mut keybinds = keybind::KeyBinds::new(mlws_lib::keybind::KeyBindings::new(
+    let mut keybinds = keybind::KeybindsServer::new(mlws_lib::keybind::KeyBindings::new(
         sound_sender.clone(),
         config.clone(),
         move |(repo, name)| {
@@ -82,12 +82,10 @@ async fn main() {
     let data = (config, sounds, (sound_sender, sound_receiver, soundloop));
 
     std::thread::spawn(move || {
-        let mut rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
-            loop {
-                keybinds.tick().await;
-            }
-        })
+        
+        loop {
+            keybinds.tick();
+        }
     });
 
     let data_idx = data.1.clone();
@@ -203,34 +201,35 @@ async fn main() {
     let sound_key = data.1.clone();
     let keybind_conn = conn.clone();
     let keybind = warp::path!("keybind" / usize).map(move |id: usize| {
-        if let Some(((repo, name), keys)) = keybind_conn.keys().get(id).map(Clone::clone) {
-            let keys = keys
-                .iter()
-                .map(|x| format!("{}", x))
-                .collect::<Vec<String>>()
-                .join(" + ");
-            let mut ctx = Context::new();
-            let sounds: Vec<String> = sound_key
-                .read()
-                .unwrap()
-                .sounds
-                .get(&repo)
-                .map(|x| x.keys().cloned().collect())
-                .unwrap_or_default();
-            ctx.insert("keybind", &((repo, name), keys, id));
-            let repos: Vec<String> = mlws_lib::config::Config::load()
-                .repos
-                .iter()
-                .map(|(_, name)| name)
-                .filter(|n| n.is_some())
-                .map(|n| n.clone().unwrap().name)
-                .collect();
-            ctx.insert("repos", &repos);
-            ctx.insert("sounds", &sounds);
-            warp::reply::html(template::render_context_no_escapes("keybind.html", &ctx))
-                .into_response()
-        } else {
-            warp::http::StatusCode::NOT_FOUND.into_response()
+        match &keybind_conn.keys()[id] {
+            ((repo, name), keys) => {
+                let keys = keys
+                    .iter()
+                    .map(|x| format!("{}", x))
+                    .collect::<Vec<String>>()
+                    .join(" + ");
+                let mut ctx = Context::new();
+                let sounds: Vec<String> = sound_key
+                    .read()
+                    .unwrap()
+                    .sounds
+                    .get(repo)
+                    .map(|x| x.keys().cloned().collect())
+                    .unwrap_or_default();
+                ctx.insert("keybind", &((repo, name), keys, id));
+                let repos: Vec<String> = mlws_lib::config::Config::load()
+                    .repos
+                    .iter()
+                    .map(|(_, name)| name)
+                    .filter(|n| n.is_some())
+                    .map(|n| n.clone().unwrap().name)
+                    .collect();
+                ctx.insert("repos", &repos);
+                ctx.insert("sounds", &sounds);
+                warp::reply::html(template::render_context_no_escapes("keybind.html", &ctx))
+                    .into_response()
+            }
+            // _ => warp::http::StatusCode::NOT_FOUND.into_response(),
         }
     });
 

@@ -30,7 +30,8 @@ enum WsIncomingMessage {
     KeybindNum(),
     Repos(),
     Sounds(String, String),
-    AddKeyBind(),
+    AddKeyBind(String, String),
+    RemoveKeyBind(usize),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -41,7 +42,7 @@ enum WsOutgoingMessage {
     Downloading(usize, u64, bool),
     Installing(usize),
     Done(usize),
-    KeybindNum(usize),
+    KeybindNum(Vec<usize>),
     Repos(Vec<String>),
     Sounds(String, Vec<String>),
 }
@@ -124,7 +125,7 @@ async fn handle(
             // let (s, r) = mpsc::channel();
             // let (repo, data) = &config.repos[i];
 
-            send(tx, WsOutgoingMessage::KeybindNum(keybinds.keys().len())).await;
+            send(tx, WsOutgoingMessage::KeybindNum(keybinds.ids())).await;
         }
         WsIncomingMessage::UpdateRepo(i) => {
             let (s2, mut r2) = mpsc::unbounded_channel();
@@ -188,13 +189,14 @@ async fn handle(
             //self.handle(Ok(ws::Message::Text(serde_json::to_string(&WsIncomingMessage::RepoStatus(i)).unwrap())), ctx);
         }
         WsIncomingMessage::Repos() => {
-            let cfg: Vec<String> = config
+            let mut cfg: Vec<String> = config
                 .repos
                 .iter()
                 .map(|(_, name)| name)
                 .filter(|n| n.is_some())
                 .map(|n| n.clone().unwrap().name)
                 .collect();
+            cfg.sort();
             send(tx, WsOutgoingMessage::Repos(cfg)).await;
         }
         WsIncomingMessage::Sounds(repo, i) => {
@@ -203,13 +205,16 @@ async fn handle(
                 .unwrap()
                 .sounds
                 .get(&repo)
-                .map(|x| x.keys().cloned().collect())
+                .map(|x| {let mut x: Vec<String> = x.keys().cloned().collect(); x.sort(); x})
                 .unwrap_or_default();
             send(tx, WsOutgoingMessage::Sounds(i, cfg)).await;
         }
-        WsIncomingMessage::AddKeyBind() => {
-            keybinds.add((String::new(), String::new()), vec![]);
-            send(tx, WsOutgoingMessage::KeybindNum(keybinds.keys().len())).await;
+        WsIncomingMessage::AddKeyBind(repo, sound) => {
+            keybinds.add((repo, sound), vec![]);
+            send(tx, WsOutgoingMessage::KeybindNum(keybinds.ids())).await;
+        }
+        WsIncomingMessage::RemoveKeyBind(_i) => {
+            
         }
     }
 }
