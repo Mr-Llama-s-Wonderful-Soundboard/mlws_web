@@ -18,6 +18,7 @@ use futures::{
 use std::time::Duration;
 
 use mlws_lib;
+use mlws_lib::rdev::Key;
 
 #[derive(Debug, Serialize, Deserialize)]
 enum WsIncomingMessage {
@@ -30,8 +31,11 @@ enum WsIncomingMessage {
     KeybindNum(),
     Repos(),
     Sounds(String, String),
-    AddKeyBind(String, String),
-    RemoveKeyBind(usize),
+    AddKeybind(String, String),
+    RemoveKeybind(usize),
+    Detect(usize),
+    StopDetect(),
+    HasDetected(),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -45,6 +49,7 @@ enum WsOutgoingMessage {
     KeybindNum(Vec<usize>),
     Repos(Vec<String>),
     Sounds(String, Vec<String>),
+    HasDetected(String),
 }
 
 pub async fn ws(ws: warp::ws::WebSocket, mut data: ServerData) {
@@ -205,16 +210,43 @@ async fn handle(
                 .unwrap()
                 .sounds
                 .get(&repo)
-                .map(|x| {let mut x: Vec<String> = x.keys().cloned().collect(); x.sort(); x})
+                .map(|x| {
+                    let mut x: Vec<String> = x.keys().cloned().collect();
+                    x.sort();
+                    x
+                })
                 .unwrap_or_default();
             send(tx, WsOutgoingMessage::Sounds(i, cfg)).await;
         }
-        WsIncomingMessage::AddKeyBind(repo, sound) => {
-            keybinds.add((repo, sound), vec![]);
+        WsIncomingMessage::AddKeybind(repo, sound) => {
+            keybinds.add((repo, sound));
             send(tx, WsOutgoingMessage::KeybindNum(keybinds.ids())).await;
         }
-        WsIncomingMessage::RemoveKeyBind(_i) => {
-            
+        WsIncomingMessage::RemoveKeybind(i) => {
+            keybinds.remove(i);
+            send(tx, WsOutgoingMessage::KeybindNum(keybinds.ids())).await;
+        }
+        WsIncomingMessage::Detect(i) => {
+            keybinds.detect(i);
+        }
+        WsIncomingMessage::StopDetect() => {
+            keybinds.stop_detect();
+            send(tx, WsOutgoingMessage::KeybindNum(keybinds.ids())).await;
+        }
+        WsIncomingMessage::HasDetected() => {
+            if let Some(detected) = keybinds.has_detected() {
+                send(
+                    tx,
+                    WsOutgoingMessage::HasDetected(
+                        detected
+                            .iter()
+                            .map(|x| format!("{}", x))
+                            .collect::<Vec<String>>()
+                            .join(" + "),
+                    ),
+                )
+                .await;
+            }
         }
     }
 }

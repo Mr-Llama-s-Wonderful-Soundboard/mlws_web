@@ -1,4 +1,4 @@
-<tr id="KEYBIND{{keybind[2]}}">
+<tr id="KEYBIND{{keybind[2]}}" number="{{keybind[2]}}">
 	<td>
 		<select id="key_repo" onchange="reload_sounds('KEYBIND{{keybind[2]}}')">
 			{% for repo in repos %}
@@ -16,9 +16,33 @@
 	</td>
 
 	<td>
-		<button id="SetButton" onclick="send('StartDetectKeyBind', [])">
+		<button id="RemoveButton" onclick="send('RemoveKeybind', parseInt('{{keybind[2]}}'))">
+			Remove
+		</button>
+	<button id="SetButton" onclick="
+		if (this.innerText === 'Set') {
+			if (setting) {
+				console.error('Can\'t detect multiple keybinds')
+			} else {
+				setting = 'KEYBIND{{keybind[2]}}';
+				setting_interval = setInterval(() => {
+					send('HasDetected', [])
+				}, 1000)
+				this.innerText='Done';
+				send('Detect', parseInt('{{keybind[2]}}'))
+			}
+		}else{
+			if (setting) {
+				setting = undefined;
+				clearInterval(setting_interval);
+				setting_interval = undefined;
+				this.innerText='Set';
+				send('StopDetect', [])
+			}
+		}
+		">
 			Set
 		</button>
-		<span id="DETECTED_KEYS"></span>
+		<span class="setting_keybind"></span>
 	</td>
 </tr>

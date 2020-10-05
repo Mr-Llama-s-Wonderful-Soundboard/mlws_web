@@ -6,12 +6,14 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>Settings</title>
 		<link rel="stylesheet" href="/css/settings.css">
-		<script>
-			
-		</script>
+		
 	</head>
 
 	<body>
+		<script>
+			var setting = undefined;
+			var setting_interval = undefined;
+		</script>
 		<label for="input_device">Input device</label><input type="text" id="input_device">
 		<label for="output_device">Output device</label><input type="text" id="output_device">
 		<table>
@@ -26,18 +28,18 @@
 
 		KEYBINDS <button onclick="ws.send(JSON.stringify({AddKeyBind: []}))">RELOAD</button>
 		<table id="KEYBINDS">
-			
+
 		</table>
 		<table>
 			<tr id="KEYBIND_NEW">
 				<td>
 					<select id="key_repo" onchange="reload_sounds('KEYBIND_NEW')">
 						{% for repo in repos %}
-							<option value="{{repo[1].name}}" >{{repo[1].name}}</option>
+						<option value="{{repo[1].name}}">{{repo[1].name}}</option>
 						{% endfor %}
 					</select>
 					<select id="key_sound">
-						
+
 					</select>
 				</td>
 				<td>
@@ -72,7 +74,7 @@
 				let repo = document.getElementById('KEYBIND_NEW').children[0].children[0].value;
 				let sound = document.getElementById('KEYBIND_NEW').children[0].children[1].value;
 
-				ws.send(`{"AddKeyBind": ["${repo}", "${sound}"]}`)
+				ws.send(`{"AddKeybind": ["${repo}", "${sound}"]}`)
 			}
 
 			function send(name, val) {
@@ -151,16 +153,19 @@
 						load_repo(i)
 					}
 				} else if (data.KeybindNum) {
-					document.getElementById('KEYBINDS').innerHTML += ''
-					for (let i = 0; i < data.KeybindNum; i++) {
+					document.getElementById('KEYBINDS').innerHTML = ''
+					for (let i of data.KeybindNum) {
 						load_keybind(i)
 					}
+				} else if (data.HasDetected) {
+					console.log(document.getElementById(setting).getElementsByClassName('setting_keybind'))
+					if (setting) document.getElementById(setting).getElementsByClassName('setting_keybind')[0].innerText = data.HasDetected
 				} else if (data.Sounds) {
 					let i = data.Sounds[0];
 					let sounds = data.Sounds[1];
 					let s = document.getElementById(i).children[0].children[1]
 					s.innerHTML = '';
-					for(let sound of sounds) {
+					for (let sound of sounds) {
 						let o = document.createElement('option');
 						o.value = sound
 						o.innerText = sound
@@ -203,6 +208,8 @@
 					return `${Math.round(b / 100000000) / 10} GB`
 				}
 			}
+
+			
 		</script>
 	</body>
 
