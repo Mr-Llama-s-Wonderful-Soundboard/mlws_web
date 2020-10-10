@@ -16,11 +16,6 @@
 		</script>
 		<label for="input_device">Input device</label><input type="text" id="input_device">
 		<label for="output_device">Output device</label><input type="text" id="output_device">
-		<table>
-			{% for name,keys in config["hotkeys"] %}
-			<tr>{{name}}{{keys}}</tr>
-			{% endfor %}
-		</table>
 		<br>
 		<button onclick="reload_repos()">Reload</button>
 		<table id="REPOS">
@@ -45,6 +40,9 @@
 				<td>
 					<button onclick="add_key()">Add</button>
 				</td>
+			</tr>
+			<tr>
+				<td><button onclick="send('SaveKeybinds')">Save keybinds</button></td>
 			</tr>
 		</table>
 		<script>
@@ -77,7 +75,7 @@
 				ws.send(`{"AddKeybind": ["${repo}", "${sound}"]}`)
 			}
 
-			function send(name, val) {
+			function send(name, val=[]) {
 				let x = {}
 				x[name] = val
 				ws.send(JSON.stringify(x))
@@ -110,6 +108,13 @@
 				let v = document.getElementById(i).children[0].children[0].value;
 				ws.send(`{"Sounds": ["${v}", "${i}"]}`)
 				// console.log('Loading keybind opts for', v);
+			}
+
+			function set_keybind(i) {
+				let repo = document.getElementById(`KEYBIND${i}`).children[0].children[0].value;
+				let sound = document.getElementById(`KEYBIND${i}`).children[0].children[1].value;
+
+				send('SetKeybind', [i, [repo, sound]])
 			}
 
 

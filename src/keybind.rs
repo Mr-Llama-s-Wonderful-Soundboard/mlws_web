@@ -1,6 +1,8 @@
 use mlws_lib::keybind;
 use mlws_lib::rdev::Key;
 
+use std::collections::HashMap;
+
 use server_client::server_client;
 
 server_client!(
@@ -37,6 +39,10 @@ server_client!(
 
         fn ids() -> Vec<usize> {
             self.keybinds.keys().ids().map(|x|*x).collect()
+        }
+
+        fn save_config() -> HashMap<(String, String), Vec<Key>> {
+            self.keybinds.save_config()
         }
     }
 );

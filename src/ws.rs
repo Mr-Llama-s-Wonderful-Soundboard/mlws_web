@@ -33,9 +33,11 @@ enum WsIncomingMessage {
     Sounds(String, String),
     AddKeybind(String, String),
     RemoveKeybind(usize),
+    SetKeybind(usize, (String, String)),
     Detect(usize),
     StopDetect(),
     HasDetected(),
+    SaveKeybinds(),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -67,7 +69,7 @@ pub async fn ws(ws: warp::ws::WebSocket, mut data: ServerData) {
 }
 
 async fn send(tx: &mut SplitSink<warp::ws::WebSocket, warp::ws::Message>, msg: WsOutgoingMessage) {
-    println!("{:?}", msg);
+    // println!("{:?}", msg);
     tx.send(warp::ws::Message::text(
         serde_json::to_string(&msg).expect("Error receiving data"),
     ))
@@ -80,8 +82,9 @@ async fn handle(
     msg: WsIncomingMessage,
     tx: &mut SplitSink<warp::ws::WebSocket, warp::ws::Message>,
 ) {
-    let ((config, sound_cfg, (sender, receiver, _)), keybinds) =
+    let ((config, sound_cfg, (sender, receiver, _), conf_client), keybinds) =
         std::sync::Arc::get_mut(data).unwrap().get_mut().unwrap();
+
     match msg {
         WsIncomingMessage::Play(repo, name) => {
             if let Some(sound) = sound_cfg.read().unwrap().get(&repo, &name) {
@@ -144,7 +147,7 @@ async fn handle(
             tokio::spawn(async move {
                 let (repo, mut down) = repos_clone;
                 mlws_lib::downloader::download(&repo, &mut down, move |p| {
-                    println!("{:?}", p);
+                    // println!("{:?}", p);
                     s.clone()
                         .send(match p {
                             mlws_lib::downloader::Progress::Downloading(a, l) => {
@@ -171,7 +174,7 @@ async fn handle(
 
             loop {
                 if let Ok(v) = r.try_recv() {
-                    println!("RECV: {:?}", v);
+                    // println!("RECV: {:?}", v);
                     if let WsOutgoingMessage::Done(_) = &v {
                         send(tx, v).await;
                         break;
@@ -247,6 +250,15 @@ async fn handle(
                 )
                 .await;
             }
+        }
+        WsIncomingMessage::SetKeybind(id, sound) => {
+            keybinds.set(id, sound);
+        }
+        WsIncomingMessage::SaveKeybinds() => {
+            println!("Saving keybinds");
+            let mut conf: mlws_lib::config::Config = conf_client.load();
+            conf.hotkeys = keybinds.save_config();
+            conf_client.save(conf);
         }
     }
 }

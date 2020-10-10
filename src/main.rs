@@ -22,6 +22,7 @@ use urldecode as url;
 use structopt::StructOpt;
 
 mod keybind;
+mod config;
 mod opts;
 mod template;
 mod ws;
@@ -36,6 +37,7 @@ pub type ServerData = Arc<
                 mlws_lib::SoundReceiver,
                 mlws_lib::SoundLoop,
             ),
+            config::ConfigClient
         ),
         keybind::KeybindsClient, // Arc<Mutex<mlws_lib::keybind::KeyBindings<mlws_lib::sound::Message, F, (String, String)>>>
     )>,
@@ -69,6 +71,8 @@ async fn main() {
         },
     ));
 
+    let mut config_server = config::ConfigServer::new();
+
     // {
     //     let conn = keybinds.connection();
     //     conn.add(
@@ -78,15 +82,18 @@ async fn main() {
     // }
 
     let conn = keybinds.connection();
+    let conf_conn = config_server.connection();
+    
 
-    let data = (config, sounds, (sound_sender, sound_receiver, soundloop));
-
+    println!("Starting server_client threads");
     std::thread::spawn(move || {
-        
         loop {
             keybinds.tick();
+            config_server.tick();
         }
     });
+
+    let data = (conf_conn.load(), sounds, (sound_sender, sound_receiver, soundloop), conf_conn.clone());
 
     let data_idx = data.1.clone();
     let index = warp::path::end().map(move || {
@@ -108,11 +115,11 @@ async fn main() {
         warp::reply::html(template::render_context("index.html", &ctx))
     });
 
-    // let data_sett = data.clone();
+    let conf_sett = conf_conn.clone();
     let settings = warp::path!("settings").map(move || {
         let mut ctx = Context::new();
-        let cfg = mlws_lib::config::Config::load();
-        ctx.insert("config", &cfg);
+        let cfg = conf_sett.load();
+        // ctx.insert("config", &cfg);
         ctx.insert("repos", &cfg.repos);
         warp::reply::html(template::render_context("settings.html", &ctx))
     });
