@@ -24,8 +24,6 @@ parser.add_argument('-f', nargs='+', required=False)
 
 args = parser.parse_args(sys.argv[1:])
 
-
-
 github = Github(getenv('GITHUB_TOKEN'))
 repo = github.get_repo('Mr-Llama-s-Wonderful-Soundboard/mlws_web')
 releases = repo.get_releases()
@@ -41,6 +39,10 @@ latest_commit = repo.get_branch(branch="master").commit
 short_hash = latest_commit.sha[:7] + '...'
 name = f'Nightly release {short_hash}'
 body = f'@{latest_commit.commit.author.name}: {latest_commit.commit.message}'
+release_instructions = '''
+Use instructions:
+
+'''
 if args.kind == 'release':
 	if release:
 		# Release is created
@@ -60,10 +62,15 @@ if args.kind == 'release' or release is None:
 
 print('Uploading assets')
 for f in args.f:
-	if os.path.exists(f):
-		filename = os.path.basename(f)
-		release.upload_asset(f, name=filename, content_type=mimetype(filename))
-		print(f, filename, mimetype(filename))
+	s = f.split('=')
+	label = ''
+	path = s[0].strip()
+	if len(s) > 1:
+		label = s[1:].join('=').strip()
+	if os.path.exists(path):
+		filename = os.path.basename(path)
+		release.upload_asset(path, name=filename, content_type=mimetype(filename), label=label)
+		print(path, filename, mimetype(filename), label)
 	
 # 	release.upload_asset(f)
 

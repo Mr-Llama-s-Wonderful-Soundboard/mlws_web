@@ -34,7 +34,7 @@ jobs:
       deploy:
         provider: script
         script:
-        - python deploy.py release -f target/release/mlws_web templates.zip
+        - python deploy.py release -f "target/release/mlws_web=Linux binary" templates.zip
         skip_cleanup: true
     - stage: Windows
       os: windows
@@ -54,7 +54,7 @@ jobs:
         - /c/Python3/python.exe get-pip.py
         - /c/Python3/python.exe -m pip install PyGithub
         - echo Deploying
-        - /c/Python3/python.exe deploy.py update -f target/release/mlws_web.exe
+        - /c/Python3/python.exe deploy.py update -f "target/release/mlws_web.exe=Windows binary"
         
 
 
