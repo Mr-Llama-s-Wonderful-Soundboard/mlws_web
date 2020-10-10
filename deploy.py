@@ -66,7 +66,7 @@ for f in args.f:
 	label = ''
 	path = s[0].strip()
 	if len(s) > 1:
-		label = s[1:].join('=').strip()
+		label = '='.join(s[1:]).strip()
 	if os.path.exists(path):
 		filename = os.path.basename(path)
 		release.upload_asset(path, name=filename, content_type=mimetype(filename), label=label)
