@@ -1,0 +1,60 @@
+language: minimal
+if: branch = master
+
+cache:
+  directories:
+  - "$TRAVIS_BUILD_DIR/target"
+  - "$HOME/.cargo"
+addons:
+  apt:
+    packages:
+    - pulseaudio
+    - libpulse-mainloop-glib0
+    - libpulse-dev
+    - libxi-dev
+    - libxtst-dev
+jobs:
+  include:
+    - stage: Linux
+      os: linux
+      dist: focal
+      name: Build on linux
+      env:
+        - secure: "qoupSKU4owEINjaC5qAbI0rDlOgi8gvxBiEo5/cXrwpOansJSICL6AXV9nIAIl7NhdlrqxVedPTGD1yHYW8PAYmBnrL1RdhX4gfGVnMyA9OAybpITMUTT+AnAzreS+xV0+Y8x5DaAQ3VRz5jUL5K5dF34VEShAa21GWvnWUR14Z7OfpfHqJx3aWWmch2bBf4hEvny0x5z5ou3YleRgk0YZRUot9Zgt7UNisXZqIiRLA7w7Kt3zyCpVq4GS7whhblbXU9gaAMVI8lqREO/8Hdq7gdkPm8AU/uv4xLE0/xg9sESpRlmhYNo/Ni4Ti+o3++ya118mnrzHQhtTVhLuWWLSU99b1Rpuzn+BUstgYvzTWTAwk7c040AzvYqDG76P/VKTEsgrwP3CwTUesmmGvDOA7VaC0WmtgOCIQoqwMlIMOO0GBxo7r2Zlz3kTtI6aa7wZTZRJ2RM92+xKjb35HUJSS6oHonKIINwXcJ++uYOhENEs3igVVu3oA2ml60QXr1M0nMH0MqTUvaqaWic67CmA63aU09jI6ygkyKac7ZT9LZ6hdyz4Wv+RtxC9U4qWEyQcfTXD2PMtbeMMEtxrDGSYY+6Qr/JukTTiGWfzotr1j7mQave8asGoakcHVp3IDus6FHUviYZ1LV2/npyBvD4QrLl1WpCq+Yxf+XcQA2Fbc="
+
+      script:
+        - cargo +stable build --release
+        - zip -r templates.zip templates
+
+      install:
+      - curl https://sh.rustup.rs -sSf | sh -s -- -y
+      - source $HOME/.cargo/env
+      before-deploy:
+      - pip install PyGithub
+      deploy:
+        provider: script
+        script:
+        - python deploy.py release -f target/release/mlws_web templates.zip
+        skip_cleanup: true
+    - stage: Windows
+      os: windows
+      env:
+        - secure: "qoupSKU4owEINjaC5qAbI0rDlOgi8gvxBiEo5/cXrwpOansJSICL6AXV9nIAIl7NhdlrqxVedPTGD1yHYW8PAYmBnrL1RdhX4gfGVnMyA9OAybpITMUTT+AnAzreS+xV0+Y8x5DaAQ3VRz5jUL5K5dF34VEShAa21GWvnWUR14Z7OfpfHqJx3aWWmch2bBf4hEvny0x5z5ou3YleRgk0YZRUot9Zgt7UNisXZqIiRLA7w7Kt3zyCpVq4GS7whhblbXU9gaAMVI8lqREO/8Hdq7gdkPm8AU/uv4xLE0/xg9sESpRlmhYNo/Ni4Ti+o3++ya118mnrzHQhtTVhLuWWLSU99b1Rpuzn+BUstgYvzTWTAwk7c040AzvYqDG76P/VKTEsgrwP3CwTUesmmGvDOA7VaC0WmtgOCIQoqwMlIMOO0GBxo7r2Zlz3kTtI6aa7wZTZRJ2RM92+xKjb35HUJSS6oHonKIINwXcJ++uYOhENEs3igVVu3oA2ml60QXr1M0nMH0MqTUvaqaWic67CmA63aU09jI6ygkyKac7ZT9LZ6hdyz4Wv+RtxC9U4qWEyQcfTXD2PMtbeMMEtxrDGSYY+6Qr/JukTTiGWfzotr1j7mQave8asGoakcHVp3IDus6FHUviYZ1LV2/npyBvD4QrLl1WpCq+Yxf+XcQA2Fbc="
+        - LIBCLANG_PATH="/c/Program Files/LLVM/bin"
+      script:
+        - sed -i 's/"autoloop"//g' Cargo.toml
+        - cargo build --release
+      install:
+        - wget -O rustup-init.exe --no-check-certificate -q "https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe"
+        - ./rustup-init.exe -y
+        - export PATH="$PATH:$HOME/.cargo/bin"
+      after-script:
+        - choco install python3 --params "/InstallDir:C:\Python3"
+        - wget https://bootstrap.pypa.io/get-pip.py
+        - /c/Python3/python.exe get-pip.py
+        - /c/Python3/python.exe -m pip install PyGithub
+        - echo Deploying
+        - /c/Python3/python.exe deploy.py update -f target/release/mlws_web.exe
+        
+
+
