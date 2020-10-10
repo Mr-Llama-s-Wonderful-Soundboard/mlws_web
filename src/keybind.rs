@@ -15,6 +15,10 @@ server_client!(
             self.keybinds.remove(i);
         }
 
+        fn set(id: usize, sound: (String, String)) {
+            self.keybinds.set_keybind(id, sound);
+        }
+
         fn detect(i: usize) {
             self.keybinds.start_detecting(i);
         }
