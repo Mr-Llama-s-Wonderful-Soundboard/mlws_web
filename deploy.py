@@ -40,8 +40,12 @@ short_hash = latest_commit.sha[:7] + '...'
 name = f'Nightly release {short_hash}'
 body = f'@{latest_commit.commit.author.name}: {latest_commit.commit.message}'
 release_instructions = '''
-Use instructions:
 
+
+Usage instructions:
+* Download your platform's binary and `templates.zip`
+* Unzip the templates in the same directories where the binary is located
+* Run the binary and open `localhost:8088`
 '''
 if args.kind == 'release':
 	if release:
@@ -58,7 +62,7 @@ if args.kind == 'release':
 	repo.create_git_tag('nightly', latest_commit.commit.message, latest_commit.sha, 'commit')
 
 if args.kind == 'release' or release is None:
-	release = repo.create_git_release('nightly', name, body, prerelease=True)
+	release = repo.create_git_release('nightly', name, body+release_instructions, prerelease=True)
 
 print('Uploading assets')
 for f in args.f:
