@@ -15,4 +15,8 @@
 	<td>
 		{{repo[2]}}
 	</td>
+	<td>
+		<button onclick="send('UpdateRepo', parseInt('{{repo[3]}}'))">Redownload</button>
+		<button onclick="send('RemoveRepo', parseInt('{{repo[3]}}'))">Remove</button>
+	</td>
 </tr>

@@ -176,7 +176,7 @@ async fn main() {
     //let data_repo = data.clone();
     let repo = warp::path!("repo" / usize).map(move |id: usize| {
         let cfg = mlws_lib::config::Config::load();
-        if let Some((repo, down)) = cfg.repos.get(id).map(|x| x.clone()) {
+        if let Some((repo, down)) = cfg.repos.get(&id).map(|x| x.clone()) {
             let (s, r) = std::sync::mpsc::channel();
             let (repo_clone, down_clone) = (repo.clone(), down.clone());
             std::thread::spawn(move || {

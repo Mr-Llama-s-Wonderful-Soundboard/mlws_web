@@ -20,7 +20,20 @@
 		<button onclick="reload_repos()">Reload</button>
 		<table id="REPOS">
 		</table>
-
+		<table>
+			<tr id="REPO_NEW">
+				<td>
+					<label for="REPO_NEW_ZIP">Zip URL: </label><input type="text" id="REPO_NEW_ZIP">
+					<label for="REPO_NEW_VER">Version URL: </label><input type="text" id="REPO_NEW_VER">
+				</td>
+				<td>
+					<button onclick="add_repo()">Add</button>
+				</td>
+			</tr>
+			<tr>
+				<td><button onclick="send('SaveKeybinds')">Save keybinds</button></td>
+			</tr>
+		</table>
 		KEYBINDS <button onclick="ws.send(JSON.stringify({AddKeyBind: []}))">RELOAD</button>
 		<table id="KEYBINDS">
 
@@ -30,7 +43,9 @@
 				<td>
 					<select id="key_repo" onchange="reload_sounds('KEYBIND_NEW')">
 						{% for repo in repos %}
+						{% if repo[1] %}
 						<option value="{{repo[1].name}}">{{repo[1].name}}</option>
+						{% endif %}
 						{% endfor %}
 					</select>
 					<select id="key_sound">
@@ -75,13 +90,22 @@
 				ws.send(`{"AddKeybind": ["${repo}", "${sound}"]}`)
 			}
 
+			function add_repo() {
+				let zip = document.getElementById('REPO_NEW_ZIP').value;
+				let ver = document.getElementById('REPO_NEW_VER').value;
+
+				ws.send(`{"AddRepo": ["${zip}", "${ver}"]}`)
+			}
+
 			function send(name, val=[]) {
 				let x = {}
 				x[name] = val
+				console.log('Sending', x)
 				ws.send(JSON.stringify(x))
 			}
 
 			function load_repo(i) {
+				// console.log('Loading repo', i);
 				fetch(`/repo/${i}`).then(response => response.text()).then(html => {
 					let repo = document.getElementById(`REPO${i}`)
 					if (repo) {
@@ -122,9 +146,9 @@
 
 			ws.onmessage = x => {
 				let data = JSON.parse(x.data)
-				console.log(data)
-				if (data.RepoStatus) {
-					repoStatus(data.RepoStatus)
+				
+				if (data.RepoReload) {
+					load_repo(data.RepoReload)
 
 				} else if (data.Downloading) {
 					let inner
@@ -143,18 +167,15 @@
 					document.getElementById(`REPO${data.Downloading[0]}`).children[2].innerHTML = ""
 					document.getElementById(`REPO${data.Downloading[0]}`).children[2].append(...inner)
 				} else if (data.Installing) {
-					let inner = [document.createTextNode("Installing")]
-
-					document.getElementById(`REPO${data.Installing[0]}`).children[2].innerHTML = ""
-					document.getElementById(`REPO${data.Installing[0]}`).children[2].append(...inner)
+					document.getElementById(`REPO${data.Installing}`).children[2].innerHTML = ""
+					document.getElementById(`REPO${data.Installing}`).children[2].innerText = "Installing"
 				} else if (data.Done) {
-					let inner = [document.createTextNode("Done")]
 
-					document.getElementById(`REPO${data.Done[0]}`).children[2].innerHTML = ""
-					document.getElementById(`REPO${data.Done[0]}`).children[2].append(...inner)
+					document.getElementById(`REPO${data.Done}`).children[2].innerHTML = ""
+					document.getElementById(`REPO${data.Done}`).children[2].innerText = "Done"
 				} else if (data.RepoNum) {
-					document.getElementById('REPOS').innerHTML += ''
-					for (let i = 0; i < data.RepoNum; i++) {
+					document.getElementById('REPOS').innerHTML = ''
+					for (let i of data.RepoNum) {
 						load_repo(i)
 					}
 				} else if (data.KeybindNum) {
@@ -176,31 +197,33 @@
 						o.innerText = sound
 						s.add(o)
 					}
+				}else{
+					console.log(data)
 				}
 			}
 
-			function repoStatus(data) {
-				let inner
-				if (data[1].Latest) {
-					inner = [document.createTextNode('LATEST')]
-				} else {
-					let upto = data[1].Updatable[1]
-					let code = document.createElement('code')
-					let update = document.createElement('button')
-					update.append('Update')
-					update.onclick = () => {
-						ws.send(`{"UpdateRepo": ${data[0]}}`)
-					}
-					code.append(upto.trim())
-					inner = [
-						document.createTextNode('UPDATABLE TO VERSION '),
-						code,
-						update
-					]
-				}
-				document.getElementById(`REPO${data[0]}`).innerHTML = ""
-				document.getElementById(`REPO${data[0]}`).append(...inner)
-			}
+			// function repoStatus(data) {
+			// 	let inner
+			// 	if (data[1].Latest) {
+			// 		inner = [document.createTextNode('LATEST')]
+			// 	} else {
+			// 		let upto = data[1].Updatable[1]
+			// 		let code = document.createElement('code')
+			// 		let update = document.createElement('button')
+			// 		update.append('Update')
+			// 		update.onclick = () => {
+			// 			ws.send(`{"UpdateRepo": ${data[0]}}`)
+			// 		}
+			// 		code.append(upto.trim())
+			// 		inner = [
+			// 			document.createTextNode('UPDATABLE TO VERSION '),
+			// 			code,
+			// 			update
+			// 		]
+			// 	}
+			// 	document.getElementById(`REPO${data[0]}`).innerHTML = ""
+			// 	document.getElementById(`REPO${data[0]}`).append(...inner)
+			// }
 
 			function bytes(b) {
 				if (b <= 100) {
