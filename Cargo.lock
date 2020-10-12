@@ -1525,7 +1525,6 @@ name = "mlws_web"
 version = "0.1.0"
 dependencies = [
  "binfs",
- "crossbeam-channel",
  "futures",
  "lazy_static",
  "mime_guess",
